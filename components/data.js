@@ -2,6 +2,15 @@ const STORAGE_KEY = 'codebrainhub_ideas';
 const VOTES_KEY = 'codebrainhub_votes';
 const USERNAMES_KEY = 'codebrainhub_usernames';
 const CURRENT_USER_KEY = 'codebrainhub_current_user';
+const PASSWORD_HASH_KEY = 'codebrainhub_password_hash';
+
+export async function hashPassword(password) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 export function generateId() {
   return crypto.randomUUID();
@@ -30,7 +39,7 @@ export function loadUsernames() {
   return data ? JSON.parse(data) : [];
 }
 
-export function registerUsername(username) {
+export async function registerUser(username, passwordHash) {
   const usernames = loadUsernames();
   if (usernames.includes(username.toLowerCase())) {
     return false;
@@ -38,7 +47,15 @@ export function registerUsername(username) {
   usernames.push(username.toLowerCase());
   localStorage.setItem(USERNAMES_KEY, JSON.stringify(usernames));
   localStorage.setItem(CURRENT_USER_KEY, username);
+  localStorage.setItem(PASSWORD_HASH_KEY, passwordHash);
   return true;
+}
+
+export async function verifyPassword(password) {
+  const storedHash = localStorage.getItem(PASSWORD_HASH_KEY);
+  if (!storedHash) return false;
+  const inputHash = await hashPassword(password);
+  return inputHash === storedHash;
 }
 
 export function getUserIdeas() {

@@ -1,55 +1,74 @@
-import { getCurrentUser, isUsernameTaken, registerUsername, getUserIdeas, loadIdeas, addComment, updateVote, getUserVote } from './components/data.js';
+import { getCurrentUser, isUsernameTaken, registerUser, verifyPassword, hashPassword, getUserIdeas, loadIdeas, addComment, updateVote, getUserVote } from './components/data.js';
 import { initModal } from './components/modal.js';
 import { renderGrid } from './components/render.js';
 
 let currentView = 'feed';
 let currentIdeaId = null;
 
-function checkUsername() {
+async function checkAuth() {
   const usernameModal = document.getElementById('usernameModal');
   const currentUser = getCurrentUser();
+  const authTitle = document.getElementById('authTitle');
+  const usernameInput = document.getElementById('usernameInput');
+  const passwordInput = document.getElementById('passwordInput');
+  const authBtn = document.getElementById('authBtn');
+  const usernameError = document.getElementById('usernameError');
+  const passwordError = document.getElementById('passwordError');
   
   if (currentUser) {
-    document.getElementById('usernameModal').classList.add('hidden');
-    document.getElementById('currentUserDisplay').textContent = `@${currentUser}`;
-    initializeApp();
+    usernameModal.classList.remove('hidden');
+    usernameInput.value = currentUser;
+    usernameInput.disabled = true;
+    authTitle.textContent = 'Login';
+    authBtn.textContent = 'Login';
+    setupAuthForm();
     return;
   }
   
   usernameModal.classList.remove('hidden');
-  setupUsernameForm();
-}
-
-function setupUsernameForm() {
-  const form = document.getElementById('usernameForm');
-  const input = document.getElementById('usernameInput');
-  const error = document.getElementById('usernameError');
+  authTitle.textContent = 'Register';
+  authBtn.textContent = 'Register';
+  setupAuthForm();
   
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const username = input.value.trim();
+  function setupAuthForm() {
+    const form = document.getElementById('usernameForm');
     
-    if (isUsernameTaken(username)) {
-      error.classList.remove('hidden');
-      return;
-    }
-    
-    if (registerUsername(username)) {
-      document.getElementById('usernameModal').classList.add('hidden');
-      document.getElementById('currentUserDisplay').textContent = `@${username}`;
-      initializeApp();
-    }
-  });
-  
-  input.addEventListener('input', () => {
-    error.classList.add('hidden');
-  });
-  
-  const currentUser = getCurrentUser();
-  if (currentUser) {
-    document.getElementById('usernameModal').classList.add('hidden');
-    document.getElementById('currentUserDisplay').textContent = `@${currentUser}`;
-    initializeApp();
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value;
+      
+      usernameError.classList.add('hidden');
+      passwordError.classList.add('hidden');
+      
+      const isRegister = !getCurrentUser();
+      
+      if (isRegister) {
+        if (await isUsernameTaken(username)) {
+          usernameError.textContent = 'Username already taken';
+          usernameError.classList.remove('hidden');
+          return;
+        }
+        
+        const passwordHash = await hashPassword(password);
+        await registerUser(username, passwordHash);
+        
+        usernameModal.classList.add('hidden');
+        document.getElementById('currentUserDisplay').textContent = `@${username}`;
+        initializeApp();
+      } else {
+        if (!(await verifyPassword(password))) {
+          passwordError.textContent = 'Incorrect password';
+          passwordError.classList.remove('hidden');
+          return;
+        }
+        
+        usernameModal.classList.add('hidden');
+        document.getElementById('currentUserDisplay').textContent = `@${username}`;
+        initializeApp();
+      }
+    });
   }
 }
 
@@ -239,4 +258,4 @@ function initializeApp() {
   initCommentsModal();
 }
 
-checkUsername();
+checkAuth();
