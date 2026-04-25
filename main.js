@@ -7,7 +7,8 @@ let currentIdeaId = null;
 
 async function checkAuth() {
   const usernameModal = document.getElementById('usernameModal');
-  const currentUser = getCurrentUser();
+  const storedUsername = localStorage.getItem('codebrainhub_current_user');
+  const storedPasswordHash = localStorage.getItem('codebrainhub_password_hash');
   const authTitle = document.getElementById('authTitle');
   const usernameInput = document.getElementById('usernameInput');
   const passwordInput = document.getElementById('passwordInput');
@@ -15,22 +16,26 @@ async function checkAuth() {
   const usernameError = document.getElementById('usernameError');
   const passwordError = document.getElementById('passwordError');
   
-  if (currentUser) {
+  if (storedUsername && storedPasswordHash) {
     usernameModal.classList.remove('hidden');
-    usernameInput.value = currentUser;
+    usernameInput.value = storedUsername;
     usernameInput.disabled = true;
     authTitle.textContent = 'Login';
     authBtn.textContent = 'Login';
-    setupAuthForm();
+    setupAuthForm(true);
     return;
+  }
+  
+  if (storedUsername && !storedPasswordHash) {
+    localStorage.removeItem('codebrainhub_current_user');
   }
   
   usernameModal.classList.remove('hidden');
   authTitle.textContent = 'Register';
   authBtn.textContent = 'Register';
-  setupAuthForm();
+  setupAuthForm(false);
   
-  function setupAuthForm() {
+  function setupAuthForm(isLogin = false) {
     const form = document.getElementById('usernameForm');
     
     form.addEventListener('submit', async (e) => {
@@ -42,9 +47,7 @@ async function checkAuth() {
       usernameError.classList.add('hidden');
       passwordError.classList.add('hidden');
       
-      const isRegister = !getCurrentUser();
-      
-      if (isRegister) {
+      if (!isLogin) {
         if (await isUsernameTaken(username)) {
           usernameError.textContent = 'Username already taken';
           usernameError.classList.remove('hidden');
