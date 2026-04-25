@@ -9,14 +9,15 @@ function checkUsername() {
   const usernameModal = document.getElementById('usernameModal');
   const currentUser = getCurrentUser();
   
-  if (!currentUser) {
-    usernameModal.classList.remove('hidden');
-    setupUsernameForm();
-    return false;
+  if (currentUser) {
+    document.getElementById('usernameModal').classList.add('hidden');
+    document.getElementById('currentUserDisplay').textContent = `@${currentUser}`;
+    initializeApp();
+    return;
   }
   
-  document.getElementById('currentUserDisplay').textContent = `@${currentUser}`;
-  return true;
+  usernameModal.classList.remove('hidden');
+  setupUsernameForm();
 }
 
 function setupUsernameForm() {
@@ -43,6 +44,13 @@ function setupUsernameForm() {
   input.addEventListener('input', () => {
     error.classList.add('hidden');
   });
+  
+  const currentUser = getCurrentUser();
+  if (currentUser) {
+    document.getElementById('usernameModal').classList.add('hidden');
+    document.getElementById('currentUserDisplay').textContent = `@${currentUser}`;
+    initializeApp();
+  }
 }
 
 function setupNavigation() {
@@ -231,6 +239,4 @@ function initializeApp() {
   initCommentsModal();
 }
 
-if (checkUsername()) {
-  initializeApp();
-}
+checkUsername();

@@ -44,7 +44,7 @@ export function registerUsername(username) {
 export function getUserIdeas() {
   const currentUser = getCurrentUser();
   if (!currentUser) return [];
-  return loadIdeas().filter(idea => idea.author === currentUser);
+  return loadIdeas().filter(idea => idea.author && idea.author.toLowerCase() === currentUser.toLowerCase());
 }
 
 export function addIdea(idea) {
@@ -55,7 +55,7 @@ export function addIdea(idea) {
   ideas.unshift({
     id: generateId(),
     ...idea,
-    author: currentUser,
+    author: currentUser.toLowerCase(),
     createdAt: new Date().toISOString(),
     votes: { useful: 0, notUseful: 0 },
     comments: []

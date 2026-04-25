@@ -1,0 +1,44 @@
+(function(){const t=document.createElement("link").relList;if(t&&t.supports&&t.supports("modulepreload"))return;for(const n of document.querySelectorAll('link[rel="modulepreload"]'))o(n);new MutationObserver(n=>{for(const r of n)if(r.type==="childList")for(const d of r.addedNodes)d.tagName==="LINK"&&d.rel==="modulepreload"&&o(d)}).observe(document,{childList:!0,subtree:!0});function s(n){const r={};return n.integrity&&(r.integrity=n.integrity),n.referrerPolicy&&(r.referrerPolicy=n.referrerPolicy),n.crossOrigin==="use-credentials"?r.credentials="include":n.crossOrigin==="anonymous"?r.credentials="omit":r.credentials="same-origin",r}function o(n){if(n.ep)return;n.ep=!0;const r=s(n);fetch(n.href,r)}})();const I="codebrainhub_ideas",L="codebrainhub_votes",$="codebrainhub_usernames",B="codebrainhub_current_user";function b(){return crypto.randomUUID()}function c(){const e=localStorage.getItem(I);return e?JSON.parse(e):[]}function f(e){localStorage.setItem(I,JSON.stringify(e))}function g(){return localStorage.getItem(B)}function O(e){return U().includes(e.toLowerCase())}function U(){const e=localStorage.getItem($);return e?JSON.parse(e):[]}function x(e){const t=U();return t.includes(e.toLowerCase())?!1:(t.push(e.toLowerCase()),localStorage.setItem($,JSON.stringify(t)),localStorage.setItem(B,e),!0)}function v(){const e=g();return e?c().filter(t=>t.author===e):[]}function D(e){const t=g();if(!t)return c();const s=c();return s.unshift({id:b(),...e,author:t,createdAt:new Date().toISOString(),votes:{useful:0,notUseful:0},comments:[]}),f(s),s}function C(){const e=localStorage.getItem(L);return e?JSON.parse(e):{}}function G(e){localStorage.setItem(L,JSON.stringify(e))}function S(e,t){const s=C(),o=c(),n=o.find(d=>d.id===e);if(!n)return o;const r=s[e];return r===t?(delete s[e],n.votes[t]--):(r&&n.votes[r]--,s[e]=t,n.votes[t]++),f(o),G(s),o}function V(e,t,s,o="discussion"){const n=c(),r=n.find(d=>d.id===e);return r&&(r.comments.push({id:b(),author:t,text:s,flag:o,createdAt:new Date().toISOString()}),f(n)),n}function M(e){return C()[e]||null}let m=[];function a(e){if(m=c(),e.innerHTML="",m.length===0){e.innerHTML='<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 3rem;">No ideas yet. Submit your first app idea!</p>';return}m.forEach(t=>{e.appendChild(k(t))})}function k(e){const t=document.createElement("div");t.className="idea-card";const s=M(e.id);let o="";return e.screenshotUrl&&(o=`<img src="${e.screenshotUrl}" alt="${e.name}" class="screenshot" onerror="this.style.display='none'">`),t.innerHTML=`
+    ${o}
+    <h3>${h(e.name)}</h3>
+    <p>${h(e.description)}</p>
+    <div class="vote-section">
+      <button class="vote-btn useful ${s==="useful"?"active":""}" data-idea="${e.id}" data-vote="useful">
+        <span>Would Use</span>
+        <strong>${e.votes.useful}</strong>
+      </button>
+      <button class="vote-btn not-useful ${s==="notUseful"?"active":""}" data-idea="${e.id}" data-vote="notUseful">
+        <span>Not For Me</span>
+        <strong>${e.votes.notUseful}</strong>
+      </button>
+    </div>
+    <button class="comments-btn" data-idea="${e.id}">
+      ${e.comments.length} Comment${e.comments.length!==1?"s":""}
+    </button>
+  `,t.querySelectorAll(".vote-btn").forEach(n=>{n.addEventListener("click",()=>A(n.dataset.idea,n.dataset.vote))}),t.querySelector(".comments-btn").addEventListener("click",()=>{window.dispatchEvent(new CustomEvent("openComments",{detail:{ideaId:e.id,ideaName:e.name}}))}),t}function A(e,t){S(e,t),a(document.getElementById("ideaGrid"))}function h(e){const t=document.createElement("div");return t.textContent=e,t.innerHTML}function _(){const e=document.getElementById("modal"),t=document.getElementById("openModal"),s=document.getElementById("closeModal"),o=document.getElementById("ideaForm");t.addEventListener("click",()=>{e.classList.remove("hidden")}),s.addEventListener("click",()=>{e.classList.add("hidden"),o.reset()}),e.addEventListener("click",n=>{n.target===e&&(e.classList.add("hidden"),o.reset())}),o.addEventListener("submit",n=>{n.preventDefault();const r={name:document.getElementById("appName").value.trim(),description:document.getElementById("description").value.trim(),screenshotUrl:document.getElementById("screenshotUrl").value.trim()};D(r),a(document.getElementById("ideaGrid")),e.classList.add("hidden"),o.reset()})}let u="feed",i=null;function F(){const e=document.getElementById("usernameModal"),t=g();return t?(document.getElementById("currentUserDisplay").textContent=`@${t}`,!0):(e.classList.remove("hidden"),J(),!1)}function J(){const e=document.getElementById("usernameForm"),t=document.getElementById("usernameInput"),s=document.getElementById("usernameError");e.addEventListener("submit",o=>{o.preventDefault();const n=t.value.trim();if(O(n)){s.classList.remove("hidden");return}x(n)&&(document.getElementById("usernameModal").classList.add("hidden"),document.getElementById("currentUserDisplay").textContent=`@${n}`,N())}),t.addEventListener("input",()=>{s.classList.add("hidden")})}function q(){const e=document.getElementById("logoLink"),t=document.getElementById("myIdeasBtn");e.addEventListener("click",s=>{s.preventDefault(),u="feed",a(document.getElementById("ideaGrid"))}),t.addEventListener("click",()=>{u="myideas";const s=v(),o=document.getElementById("ideaGrid");if(o.innerHTML="",s.length===0){o.innerHTML=`<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 3rem;">You haven't submitted any ideas yet.</p>`;return}s.forEach(n=>{o.appendChild(p(n))})})}function p(e){const t=document.createElement("div");t.className="idea-card";const s=M(e.id);let o="";e.screenshotUrl&&(o=`<img src="${e.screenshotUrl}" alt="${e.name}" class="screenshot" onerror="this.style.display='none'">`);const n=e.comments.length===1?"Comment":"Comments";return t.innerHTML=`
+    ${o}
+    <h3>${l(e.name)}</h3>
+    <p>${l(e.description)}</p>
+    <div class="vote-section">
+      <button class="vote-btn useful ${s==="useful"?"active":""}" data-idea="${e.id}" data-vote="useful">
+        <span>Would Use</span>
+        <strong>${e.votes.useful}</strong>
+      </button>
+      <button class="vote-btn not-useful ${s==="notUseful"?"active":""}" data-idea="${e.id}" data-vote="notUseful">
+        <span>Not For Me</span>
+        <strong>${e.votes.notUseful}</strong>
+      </button>
+    </div>
+    <button class="comments-btn" data-idea="${e.id}" data-name="${l(e.name)}">
+      ${e.comments.length} ${n}
+    </button>
+  `,t.querySelectorAll(".vote-btn").forEach(r=>{r.addEventListener("click",()=>K(r.dataset.idea,r.dataset.vote))}),t.querySelector(".comments-btn").addEventListener("click",()=>{window.dispatchEvent(new CustomEvent("openComments",{detail:{ideaId:e.id,ideaName:e.name}}))}),t}function K(e,t){if(S(e,t),u==="feed")a(document.getElementById("ideaGrid"));else{const s=v(),o=document.getElementById("ideaGrid");o.innerHTML="",s.forEach(n=>{o.appendChild(p(n))})}}function l(e){const t=document.createElement("div");return t.textContent=e,t.innerHTML}function R(e){const t=new Date(e),o=new Date-t;return o<6e4?"Just now":o<36e5?`${Math.floor(o/6e4)}m ago`:o<864e5?`${Math.floor(o/36e5)}h ago`:t.toLocaleDateString()}function Y(){const e=document.getElementById("commentsModal"),t=document.getElementById("closeComments"),s=document.getElementById("commentsTitle");document.getElementById("commentsList");const o=document.getElementById("commentForm");window.addEventListener("openComments",n=>{i=n.detail.ideaId,s.textContent=`${n.detail.ideaName} — Comments`,y(),e.classList.remove("hidden")}),t.addEventListener("click",()=>{e.classList.add("hidden"),i=null}),e.addEventListener("click",n=>{n.target===e&&(e.classList.add("hidden"),i=null)}),o.addEventListener("submit",n=>{n.preventDefault();const r=document.getElementById("commentAuthor").value.trim(),d=document.getElementById("commentText").value.trim(),w=document.getElementById("commentFlag").value;if(!(!i||!r||!d)){if(V(i,r,d,w),y(),u==="feed")a(document.getElementById("ideaGrid"));else{const T=v(),E=document.getElementById("ideaGrid");E.innerHTML="",T.forEach(H=>{E.appendChild(p(H))})}o.reset()}})}function y(){const t=c().find(o=>o.id===i),s=document.getElementById("commentsList");if(!t){s.innerHTML="<p>Idea not found.</p>";return}if(t.comments.length===0){s.innerHTML='<p style="color: var(--text-muted);">No comments yet. Be the first to comment!</p>';return}s.innerHTML=t.comments.map(o=>`
+    <div class="comment">
+      <div class="comment-header">
+        <span class="flag-badge ${o.flag||"discussion"}">${o.flag==="suggestion"?"💡":"💬"} ${o.flag||"discussion"}</span>
+        <span class="comment-author">${l(o.author)}</span>
+      </div>
+      <div class="comment-text">${l(o.text)}</div>
+      <div class="comment-time">${R(o.createdAt)}</div>
+    </div>
+  `).join("")}function N(){_(),q(),a(document.getElementById("ideaGrid")),Y()}F()&&N();

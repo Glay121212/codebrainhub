@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Codebrainhub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="/assets/index-5xgS8M2r.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-VSk8LYxQ.css">
+</head>
+<body>
+  <div id="usernameModal" class="modal">
+    <div class="modal-content">
+      <h2>Choose Your Username</h2>
+      <p class="username-hint">This is how others will see you</p>
+      <form id="usernameForm">
+        <div class="form-group">
+          <input type="text" id="usernameInput" required placeholder="Enter username" minlength="2" maxlength="20">
+          <p id="usernameError" class="error-text hidden">Username already taken</p>
+        </div>
+        <button type="submit" class="btn-primary">Continue</button>
+      </form>
+    </div>
+  </div>
+
+  <nav class="navbar">
+    <div class="nav-content">
+      <a href="#" id="logoLink" class="logo">Codebrainhub</a>
+      <div class="nav-right">
+        <span id="currentUserDisplay" class="user-display"></span>
+        <button id="myIdeasBtn" class="btn-secondary">My Ideas</button>
+        <button id="openModal" class="btn-primary">Submit Idea</button>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <div id="ideaGrid" class="idea-grid"></div>
+  </main>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Share Your App Idea</h2>
+        <button id="closeModal" class="btn-close">&times;</button>
+      </div>
+      <form id="ideaForm">
+        <div class="form-group">
+          <label for="appName">App Name *</label>
+          <input type="text" id="appName" required placeholder="My Awesome App">
+        </div>
+        <div class="form-group">
+          <label for="description">Description *</label>
+          <textarea id="description" required rows="4" placeholder="What does your app do?"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="screenshotUrl">Screenshot URL (optional)</label>
+          <input type="url" id="screenshotUrl" placeholder="https://example.com/screenshot.png">
+        </div>
+        <button type="submit" class="btn-primary">Submit Idea</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="commentsModal" class="modal hidden">
+    <div class="modal-content comments-modal">
+      <div class="modal-header">
+        <h2 id="commentsTitle">Comments</h2>
+        <button id="closeComments" class="btn-close">&times;</button>
+      </div>
+      <div id="commentsList"></div>
+      <form id="commentForm" class="comment-form">
+        <div class="form-group">
+          <select id="commentFlag">
+            <option value="discussion">💬 Discussion</option>
+            <option value="suggestion">💡 Suggestion</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <input type="text" id="commentAuthor" required placeholder="Your name">
+        </div>
+        <div class="form-group">
+          <textarea id="commentText" required rows="2" placeholder="Add a comment..."></textarea>
+        </div>
+        <button type="submit" class="btn-primary">Post Comment</button>
+      </form>
+    </div>
+  </div>
+
+</body>
+</html>
