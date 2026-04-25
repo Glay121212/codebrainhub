@@ -180,9 +180,8 @@ export async function loadIdeas() {
     }
     
     if (!data || data.length === 0) {
-      console.log('Supabase empty, checking localStorage');
-      const localIdeas = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      cachedIdeas = localIdeas;
+      console.log('Supabase empty, returning empty array');
+      cachedIdeas = [];
       ideasLoaded = true;
       return cachedIdeas;
     }
@@ -193,8 +192,7 @@ export async function loadIdeas() {
     return cachedIdeas;
   } catch (err) {
     console.error('Error loading ideas:', err);
-    const localIdeas = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    return localIdeas;
+    return [];
   }
 }
 
@@ -305,12 +303,11 @@ export async function addIdea(input) {
   
   if (error) {
     console.log('Supabase failed, using localStorage:', error.message);
-    // Fallback to localStorage - use cachedIdeas directly (don't reload)
     cachedIdeas = [newIdea, ...cachedIdeas];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedIdeas));
   } else {
-    console.log('Supabase add succeeded');
-    // Don't reload - use cached
+    console.log('Supabase add succeeded, reloading ideas...');
+    cachedIdeas = await loadIdeas();
   }
   
   return cachedIdeas;
