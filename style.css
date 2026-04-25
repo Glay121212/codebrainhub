@@ -1,8 +1,8 @@
 :root {
-  --bg-primary: #121212;
-  --bg-card: #1E1E1E;
-  --border-card: #2D2D2D;
-  --accent-primary: #8B5CF6;
+  --bg-primary: #000000;
+  --bg-card: #0a0a0a;
+  --border-card: #1a1a1a;
+  --accent-primary: #f97316;
   --accent-secondary: #06B6D4;
   --text-primary: #FFFFFF;
   --text-secondary: #A1A1AA;
@@ -58,7 +58,7 @@ body {
 }
 
 .btn-primary {
-  background: var(--accent-primary);
+  background: #f97316;
   color: var(--text-primary);
   border: none;
   padding: 0.625rem 1.25rem;
@@ -70,8 +70,14 @@ body {
 }
 
 .btn-primary:hover {
-  background: #7c3aed;
+  background: #ea580c;
   transform: translateY(-1px);
+}
+
+.logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f97316;
 }
 
 main {
@@ -376,8 +382,8 @@ main {
 }
 
 .flag-badge.discussion {
-  background: rgba(139, 92, 246, 0.2);
-  color: var(--accent-primary);
+  background: rgba(249, 115, 22, 0.2);
+  color: #f97316;
 }
 
 .flag-badge.suggestion {
