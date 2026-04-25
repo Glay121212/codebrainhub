@@ -38,6 +38,41 @@ async function checkAuth() {
   
   function setupAuthForm(isLogin = false) {
     const form = document.getElementById('usernameForm');
+    const authToggle = document.getElementById('authToggle');
+    const authToggleText = document.getElementById('authToggleText');
+    
+    if (isLogin) {
+      authTitle.textContent = 'Login';
+      authBtn.textContent = 'Login';
+      usernameInput.disabled = true;
+      authToggleText.textContent = "Don't have an account?";
+      authToggle.textContent = 'Register';
+    } else {
+      authTitle.textContent = 'Choose Your Username';
+      authBtn.textContent = 'Register';
+      usernameInput.disabled = false;
+      authToggleText.textContent = 'Already have an account?';
+      authToggle.textContent = 'Login';
+    }
+    
+    authToggle.onclick = (e) => {
+      e.preventDefault();
+      if (isLogin) {
+        usernameInput.disabled = false;
+        authTitle.textContent = 'Choose Your Username';
+        authBtn.textContent = 'Register';
+        authToggleText.textContent = 'Already have an account?';
+        authToggle.textContent = 'Login';
+        setupAuthForm(false);
+      } else {
+        usernameInput.disabled = true;
+        authTitle.textContent = 'Login';
+        authBtn.textContent = 'Login';
+        authToggleText.textContent = "Don't have an account?";
+        authToggle.textContent = 'Register';
+        setupAuthForm(true);
+      }
+    };
     
     form.addEventListener('submit', async (e) => {
       e.preventDefault();

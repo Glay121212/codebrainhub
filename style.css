@@ -320,6 +320,22 @@ main {
   margin-bottom: 1rem;
 }
 
+.auth-toggle {
+  color: var(--primary);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.auth-toggle:hover {
+  color: var(--primary-hover);
+}
+
+#authToggleText {
+  margin-top: 1rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
 .error-text {
   color: var(--error);
   font-size: 0.75rem;
