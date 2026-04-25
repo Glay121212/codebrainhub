@@ -55,8 +55,16 @@
           <textarea id="description" required rows="4" placeholder="What does your app do?"></textarea>
         </div>
         <div class="form-group">
-          <label for="screenshotUrl">Screenshot URL (optional)</label>
-          <input type="url" id="screenshotUrl" placeholder="https://example.com/screenshot.png">
+          <label>Screenshot (optional)</label>
+          <div class="screenshot-options">
+            <input type="file" id="screenshotFile" accept="image/*" class="screenshot-file">
+            <span class="or-text">or</span>
+            <input type="url" id="screenshotUrl" placeholder="Paste image URL">
+          </div>
+          <div id="previewContainer" class="preview-container hidden">
+            <img id="screenshotPreview" class="screenshot-preview">
+            <button type="button" id="removeScreenshot" class="remove-screenshot">&times;</button>
+          </div>
         </div>
         <button type="submit" class="btn-primary">Submit Idea</button>
       </form>
