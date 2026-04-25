@@ -1,9 +1,43 @@
-import { createClient } from '@supabase/supabase-js';
+const JSONBIN_KEY = 'codebrainhub_jsonbin_key';
+const JSONBIN_BIN_ID = 'codebrainhub_jsonbin_binid';
+const API_BASE = 'https://api.jsonbin.io/v3/b';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://qkqozmrrotibbrwaeygi.supabase.co';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFrcW96bXJyb3RpYmJyd2FleWdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMjczOTQsImV4cCI6MjA5MjcwMzM5NH0.2uSJANu6sWCFinbvmuI1lbLmCQMSdoMiazcXATqW33k';
+async function jsonbinRequest(method, path, data = null) {
+  const binId = localStorage.getItem(JSONBIN_BIN_ID);
+  const apiKey = localStorage.getItem(JSONBIN_KEY);
+  
+  if (!apiKey) return null;
+  
+  const url = binId ? `${API_BASE}${path}/${binId}` : `${API_BASE}${path}`;
+  const headers = {
+    'X-Access-Key': apiKey,
+    'Content-Type': 'application/json'
+  };
+  
+  const options = { method, headers };
+  if (data) options.body = JSON.stringify(data);
+  
+  try {
+    const res = await fetch(url, options);
+    const json = await res.json();
+    if (!binId && json.bin?.id) {
+      localStorage.setItem(JSONBIN_BIN_ID, json.bin.id);
+    }
+    return json;
+  } catch (err) {
+    console.log('JSONBin error:', err.message);
+    return null;
+  }
+}
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+async function loadFromJsonbin() {
+  const result = await jsonbinRequest('GET', '/b/');
+  return result?.record?.ideas || null;
+}
+
+async function saveToJsonbin(ideas) {
+  return await jsonbinRequest('PUT', '/b/', { ideas, updated: Date.now() });
+}
 
 const STORAGE_KEY = 'codebrainhub_ideas';
 const VOTES_KEY = 'codebrainhub_votes';
@@ -167,33 +201,18 @@ let cachedIdeas = [];
 let ideasLoaded = false;
 
 export async function loadIdeas() {
-  let ideas = [];
+  const apiKey = localStorage.getItem(JSONBIN_KEY);
   
-  try {
-    const { data, error, status } = await supabase
-      .from('ideas')
-      .select('*, comments(id, author, text, flag, created_at)')
-      .order('created_at', { ascending: false });
-    
-    console.log('Supabase load:', { error, status, count: data?.length });
-    
-    if (!error && data && data.length > 0) {
-      ideas = data;
-      cachedIdeas = ideas;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(ideas));
-      return ideas;
+  if (apiKey) {
+    const data = await loadFromJsonbin();
+    if (data) {
+      cachedIdeas = data;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      return data;
     }
-    
-    if (error) {
-      console.log('Supabase error:', error.message);
-    }
-  } catch (err) {
-    console.log('Supabase fetch failed:', err.message);
   }
   
-  // Fallback to localStorage (for offline or Supabase not working)
   const localIdeas = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  console.log('Using localStorage fallback, ideas count:', localIdeas.length);
   return localIdeas;
 }
 
@@ -210,41 +229,22 @@ export async function isUsernameTaken(username) {
   const result = validateUsername(username);
   if (!result.valid) return false;
   
-  // Try Supabase first
-  const { data, error } = await supabase.rpc('check_username_exists', {
-    p_username: result.value.toLowerCase()
-  });
-  
-  if (error) {
-    // Fallback to localStorage check
-    const usernames = JSON.parse(localStorage.getItem(USERNAMES_KEY) || '[]');
-    return usernames.includes(result.value.toLowerCase());
-  }
-  
-  return data === true;
+  const usernames = JSON.parse(localStorage.getItem(USERNAMES_KEY) || '[]');
+  return usernames.includes(result.value.toLowerCase());
 }
 
 export async function registerUser(username, passwordHash) {
   const result = validateUsername(username);
   if (!result.valid) return false;
   
-  // Try Supabase first
-  const { data, error } = await supabase.rpc('register_username', {
-    p_username: result.value.toLowerCase()
-  });
-  
-  if (error || !data) {
-    console.log('Supabase register failed, using localStorage');
-    // Fallback: Check localStorage for existing usernames
-    const usernames = JSON.parse(localStorage.getItem(USERNAMES_KEY) || '[]');
-    const normalizedUsername = result.value.toLowerCase();
-    if (usernames.includes(normalizedUsername)) {
-      console.error('Username already taken (local)');
-      return false;
-    }
-    usernames.push(normalizedUsername);
-    localStorage.setItem(USERNAMES_KEY, JSON.stringify(usernames));
+  const usernames = JSON.parse(localStorage.getItem(USERNAMES_KEY) || '[]');
+  const normalizedUsername = result.value.toLowerCase();
+  if (usernames.includes(normalizedUsername)) {
+    console.error('Username already taken');
+    return false;
   }
+  usernames.push(normalizedUsername);
+  localStorage.setItem(USERNAMES_KEY, JSON.stringify(usernames));
   
   localStorage.setItem(CURRENT_USER_KEY, result.value);
   localStorage.setItem(PASSWORD_HASH_KEY, passwordHash);
@@ -294,44 +294,19 @@ export async function addIdea(input) {
     comments: []
   };
   
-  // Try Supabase first
-  const { error } = await supabase.rpc('add_idea', {
-    p_name: validation.value.name,
-    p_description: validation.value.description,
-    p_screenshot_url: validation.value.screenshotUrl,
-    p_author: currentUser.toLowerCase()
-  });
+  cachedIdeas = [newIdea, ...cachedIdeas];
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedIdeas));
   
-  if (error) {
-    console.log('Supabase failed, using localStorage:', error.message);
-    cachedIdeas = [newIdea, ...cachedIdeas];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedIdeas));
-  } else {
-    console.log('Supabase add succeeded, reloading ideas...');
-    cachedIdeas = await loadIdeas();
+  const apiKey = localStorage.getItem(JSONBIN_KEY);
+  if (apiKey) {
+    await saveToJsonbin(cachedIdeas);
   }
   
   return cachedIdeas;
 }
 
 export async function loadUserVotes() {
-  const currentUser = getCurrentUser();
-  if (!currentUser) return {};
-  
-  const { data, error } = await supabase
-    .from('user_votes')
-    .select('idea_id, vote_type')
-    .eq('username', currentUser.toLowerCase());
-  
-  if (error) {
-    console.error('Error loading votes:', error);
-    return {};
-  }
-  
-  const votes = {};
-  (data || []).forEach(v => {
-    votes[v.idea_id] = v.vote_type;
-  });
+  const votes = JSON.parse(localStorage.getItem(VOTES_KEY) || '{}');
   return votes;
 }
 
@@ -343,16 +318,34 @@ export async function updateVote(ideaId, voteType) {
   const currentUser = getCurrentUser();
   if (!currentUser) return cachedIdeas;
   
-  await supabase.rpc('vote_for_idea', {
-    p_idea_id: ideaId,
-    p_username: currentUser.toLowerCase(),
-    p_vote_type: voteType
+  const votes = JSON.parse(localStorage.getItem(VOTES_KEY) || '{}');
+  const existingVote = votes[ideaId];
+  
+  if (existingVote === voteType) {
+    delete votes[ideaId];
+  } else {
+    votes[ideaId] = voteType;
+  }
+  saveUserVotes(votes);
+  
+  cachedIdeas = cachedIdeas.map(idea => {
+    if (idea.id === ideaId) {
+      const delta = existingVote === voteType ? 0 : (voteType === 'useful' ? 1 : -1);
+      const removeDelta = existingVote && existingVote !== voteType ? (existingVote === 'useful' ? -1 : 1) : 0;
+      return {
+        ...idea,
+        votes_useful: Math.max(0, (idea.votes_useful || 0) + delta - removeDelta),
+        votes_not_useful: Math.max(0, (idea.votes_not_useful || 0) - delta + removeDelta)
+      };
+    }
+    return idea;
   });
   
-  await loadIdeas();
-  
-  const votes = await loadUserVotes();
-  saveUserVotes(votes);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedIdeas));
+  const apiKey = localStorage.getItem(JSONBIN_KEY);
+  if (apiKey) {
+    await saveToJsonbin(cachedIdeas);
+  }
   
   return cachedIdeas;
 }
@@ -370,23 +363,47 @@ export async function addComment(ideaId, author, text, flag) {
     return cachedIdeas;
   }
   
-  const { error } = await supabase.rpc('add_comment', {
-    p_idea_id: ideaId,
-    p_author: validation.value.author,
-    p_text: validation.value.text,
-    p_flag: validation.value.flag
+  const newComment = {
+    id: generateId(),
+    idea_id: ideaId,
+    author: validation.value.author,
+    text: validation.value.text,
+    flag: validation.value.flag,
+    created_at: new Date().toISOString()
+  };
+  
+  cachedIdeas = cachedIdeas.map(idea => {
+    if (idea.id === ideaId) {
+      return {
+        ...idea,
+        comments: [newComment, ...(idea.comments || [])]
+      };
+    }
+    return idea;
   });
   
-  if (error) {
-    console.error('Error adding comment:', error);
-    return cachedIdeas;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedIdeas));
+  const apiKey = localStorage.getItem(JSONBIN_KEY);
+  if (apiKey) {
+    await saveToJsonbin(cachedIdeas);
   }
   
-  await loadIdeas();
   return cachedIdeas;
 }
 
 export async function getUserVote(ideaId) {
   const votes = await loadUserVotes();
   return votes[ideaId] || null;
+}
+
+export function setJsonbinKey(apiKey) {
+  if (apiKey && apiKey.startsWith('$')) {
+    localStorage.setItem(JSONBIN_KEY, apiKey);
+    return true;
+  }
+  return false;
+}
+
+export function getJsonbinKeyStatus() {
+  return !!localStorage.getItem(JSONBIN_KEY);
 }

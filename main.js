@@ -1,4 +1,4 @@
-import { getCurrentUser, isUsernameTaken, registerUser, verifyPassword, hashPassword, getUserIdeas, loadIdeas, addComment as addIdeaComment, updateVote, getUserVote } from './components/data.js';
+import { getCurrentUser, isUsernameTaken, registerUser, verifyPassword, hashPassword, getUserIdeas, loadIdeas, addComment as addIdeaComment, updateVote, getUserVote, setJsonbinKey, getJsonbinKeyStatus } from './components/data.js';
 import { initModal } from './components/modal.js';
 import { renderGrid } from './components/render.js';
 
@@ -135,6 +135,55 @@ function setupNavigation() {
     ideas.forEach(idea => {
       container.appendChild(createCard(idea));
     });
+  });
+}
+
+function setupSettings() {
+  const settingsBtn = document.getElementById('openSettings');
+  const settingsModal = document.getElementById('settingsModal');
+  const closeSettings = document.getElementById('closeSettings');
+  const saveJsonbin = document.getElementById('saveJsonbin');
+  const jsonbinKeyInput = document.getElementById('jsonbinKey');
+  const jsonbinStatus = document.getElementById('jsonbinStatus');
+  
+  function updateStatus() {
+    if (getJsonbinKeyStatus()) {
+      jsonbinStatus.textContent = '✓ API key saved - ideas will sync';
+      jsonbinStatus.style.color = 'green';
+    } else {
+      jsonbinStatus.textContent = 'No API key - ideas are local only';
+      jsonbinStatus.style.color = 'var(--text-muted)';
+    }
+  }
+  updateStatus();
+  
+  settingsBtn.addEventListener('click', () => {
+    settingsModal.classList.remove('hidden');
+    updateStatus();
+  });
+  
+  closeSettings.addEventListener('click', () => {
+    settingsModal.classList.add('hidden');
+  });
+  
+  settingsModal.addEventListener('click', (e) => {
+    if (e.target === settingsModal) {
+      settingsModal.classList.add('hidden');
+    }
+  });
+  
+  saveJsonbin.addEventListener('click', () => {
+    const key = jsonbinKeyInput.value.trim();
+    if (setJsonbinKey(key)) {
+      jsonbinStatus.textContent = '✓ API key saved!';
+      jsonbinStatus.style.color = 'green';
+      loadIdeas().then(ideas => {
+        renderGrid(document.getElementById('ideaGrid'));
+      });
+    } else {
+      jsonbinStatus.textContent = 'Invalid key (must start with $)';
+      jsonbinStatus.style.color = 'red';
+    }
   });
 }
 
@@ -298,6 +347,7 @@ async function renderComments() {
 async function initializeApp() {
   initModal();
   setupNavigation();
+  setupSettings();
   await renderGrid(document.getElementById('ideaGrid'));
   initCommentsModal();
 }
