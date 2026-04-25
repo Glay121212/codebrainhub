@@ -3,7 +3,9 @@ import { loadIdeas, getUserVote, updateVote } from './data.js';
 let currentIdeas = [];
 
 export async function renderGrid(container) {
+  console.log('renderGrid called, loading ideas...');
   currentIdeas = await loadIdeas();
+  console.log('Ideas loaded in render:', currentIdeas);
   container.innerHTML = '';
   
   if (currentIdeas.length === 0) {
