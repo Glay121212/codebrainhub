@@ -4,6 +4,7 @@ import { renderGrid } from './components/render.js';
 
 let currentView = 'feed';
 let currentIdeaId = null;
+let ideas = [];
 
 async function checkAuth() {
   const usernameModal = document.getElementById('usernameModal');
@@ -59,7 +60,7 @@ async function checkAuth() {
         
         usernameModal.classList.add('hidden');
         document.getElementById('currentUserDisplay').textContent = `@${username}`;
-        initializeApp();
+        await initializeApp();
       } else {
         if (!(await verifyPassword(password))) {
           passwordError.textContent = 'Incorrect password';
@@ -69,7 +70,7 @@ async function checkAuth() {
         
         usernameModal.classList.add('hidden');
         document.getElementById('currentUserDisplay').textContent = `@${username}`;
-        initializeApp();
+        await initializeApp();
       }
     });
   }
@@ -85,9 +86,9 @@ function setupNavigation() {
     renderGrid(document.getElementById('ideaGrid'));
   });
   
-  myIdeasBtn.addEventListener('click', () => {
+  myIdeasBtn.addEventListener('click', async () => {
     currentView = 'myideas';
-    const ideas = getUserIdeas();
+    const ideas = await getUserIdeas();
     const container = document.getElementById('ideaGrid');
     container.innerHTML = '';
     
@@ -145,12 +146,12 @@ function createCard(idea) {
   return card;
 }
 
-function handleVote(ideaId, voteType) {
-  updateVote(ideaId, voteType);
+async function handleVote(ideaId, voteType) {
+  ideas = await updateVote(ideaId, voteType);
   if (currentView === 'feed') {
     renderGrid(document.getElementById('ideaGrid'));
   } else {
-    const ideas = getUserIdeas();
+    const ideas = await getUserIdeas();
     const container = document.getElementById('ideaGrid');
     container.innerHTML = '';
     ideas.forEach(idea => {
@@ -202,7 +203,7 @@ function initCommentsModal() {
     }
   });
   
-  commentForm.addEventListener('submit', (e) => {
+  commentForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const authorEl = document.getElementById('commentAuthor');
@@ -215,12 +216,12 @@ function initCommentsModal() {
     
     if (!currentIdeaId || !author || !text) return;
     
-    addIdeaComment(currentIdeaId, author, text, flag);
+    ideas = await addIdeaComment(currentIdeaId, author, text, flag);
     renderComments();
     if (currentView === 'feed') {
       renderGrid(document.getElementById('ideaGrid'));
     } else {
-      const ideas = getUserIdeas();
+      const ideas = await getUserIdeas();
       const container = document.getElementById('ideaGrid');
       container.innerHTML = '';
       ideas.forEach(idea => {
@@ -231,8 +232,8 @@ function initCommentsModal() {
   });
 }
 
-function renderComments() {
-  const ideas = loadIdeas();
+async function renderComments() {
+  ideas = await loadIdeas();
   const idea = ideas.find(i => i.id === currentIdeaId);
   const commentsListEl = document.getElementById('commentsList');
   
@@ -241,27 +242,28 @@ function renderComments() {
     return;
   }
   
-  if (idea.comments.length === 0) {
+  const comments = idea.comments || [];
+  if (comments.length === 0) {
     commentsListEl.innerHTML = '<p style="color: var(--text-muted);">No comments yet. Be the first to comment!</p>';
     return;
   }
   
-  commentsListEl.innerHTML = idea.comments.map(comment => `
+  commentsListEl.innerHTML = comments.map(comment => `
     <div class="comment">
       <div class="comment-header">
         <span class="flag-badge ${comment.flag || 'discussion'}">${comment.flag === 'suggestion' ? '💡' : '💬'} ${comment.flag || 'discussion'}</span>
         <span class="comment-author">${escapeHtml(comment.author)}</span>
       </div>
       <div class="comment-text">${escapeHtml(comment.text)}</div>
-      <div class="comment-time">${formatTime(comment.createdAt)}</div>
+      <div class="comment-time">${formatTime(comment.created_at)}</div>
     </div>
   `).join('');
 }
 
-function initializeApp() {
+async function initializeApp() {
   initModal();
   setupNavigation();
-  renderGrid(document.getElementById('ideaGrid'));
+  await renderGrid(document.getElementById('ideaGrid'));
   initCommentsModal();
 }
 

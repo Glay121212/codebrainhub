@@ -1,4 +1,4 @@
-import { addIdea } from './data.js';
+import { addIdea, loadIdeas } from './data.js';
 import { renderGrid } from './render.js';
 
 export function initModal() {
@@ -77,15 +77,15 @@ export function initModal() {
     }
   });
 
-  function submitIdea(screenshotUrlValue) {
+  async function submitIdea(screenshotUrlValue) {
     const idea = {
       name: document.getElementById('appName').value.trim(),
       description: document.getElementById('description').value.trim(),
       screenshotUrl: screenshotUrlValue
     };
     
-    addIdea(idea);
-    renderGrid(document.getElementById('ideaGrid'));
+    await addIdea(idea);
+    await renderGrid(document.getElementById('ideaGrid'));
     
     modal.classList.add('hidden');
     resetForm();

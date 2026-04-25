@@ -2,8 +2,8 @@ import { loadIdeas, getUserVote, updateVote } from './data.js';
 
 let currentIdeas = [];
 
-export function renderGrid(container) {
-  currentIdeas = loadIdeas();
+export async function renderGrid(container) {
+  currentIdeas = await loadIdeas();
   container.innerHTML = '';
   
   if (currentIdeas.length === 0) {
@@ -11,21 +11,24 @@ export function renderGrid(container) {
     return;
   }
   
-  currentIdeas.forEach(idea => {
-    container.appendChild(createCard(idea));
-  });
+  for (const idea of currentIdeas) {
+    container.appendChild(await createCard(idea));
+  }
 }
 
-function createCard(idea) {
+async function createCard(idea) {
   const card = document.createElement('div');
   card.className = 'idea-card';
   
-  const userVote = getUserVote(idea.id);
+  const userVote = await getUserVote(idea.id);
   
   let screenshotHtml = '';
-  if (idea.screenshotUrl) {
-    screenshotHtml = `<img src="${idea.screenshotUrl}" alt="${idea.name}" class="screenshot" onerror="this.style.display='none'">`;
+  if (idea.screenshot_url) {
+    screenshotHtml = `<img src="${idea.screenshot_url}" alt="${idea.name}" class="screenshot" onerror="this.style.display='none'">`;
   }
+  
+  const comments = idea.comments || [];
+  const commentCount = comments.length;
   
   card.innerHTML = `
     ${screenshotHtml}
@@ -34,15 +37,15 @@ function createCard(idea) {
     <div class="vote-section">
       <button class="vote-btn useful ${userVote === 'useful' ? 'active' : ''}" data-idea="${idea.id}" data-vote="useful">
         <span>Would Use</span>
-        <strong>${idea.votes.useful}</strong>
+        <strong>${idea.votes_useful}</strong>
       </button>
       <button class="vote-btn not-useful ${userVote === 'notUseful' ? 'active' : ''}" data-idea="${idea.id}" data-vote="notUseful">
         <span>Not For Me</span>
-        <strong>${idea.votes.notUseful}</strong>
+        <strong>${idea.votes_not_useful}</strong>
       </button>
     </div>
     <button class="comments-btn" data-idea="${idea.id}">
-      ${idea.comments.length} Comment${idea.comments.length !== 1 ? 's' : ''}
+      ${commentCount} Comment${commentCount !== 1 ? 's' : ''}
     </button>
   `;
   
@@ -57,9 +60,9 @@ function createCard(idea) {
   return card;
 }
 
-function handleVote(ideaId, voteType) {
-  const newIdeas = updateVote(ideaId, voteType);
-  renderGrid(document.getElementById('ideaGrid'));
+async function handleVote(ideaId, voteType) {
+  await updateVote(ideaId, voteType);
+  await renderGrid(document.getElementById('ideaGrid'));
 }
 
 function escapeHtml(text) {

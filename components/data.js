@@ -1,12 +1,9 @@
-/**
- * Codebrainhub Security Module
- * 
- * Security hardening for client-side storage:
- * - Input validation & sanitization
- * - Rate limiting
- * - Schema-based input validation
- * - No hard-coded keys (all configurable)
- */
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const STORAGE_KEY = 'codebrainhub_ideas';
 const VOTES_KEY = 'codebrainhub_votes';
@@ -166,19 +163,32 @@ export function generateId() {
   return crypto.randomUUID();
 }
 
-export function loadIdeas() {
-  const data = localStorage.getItem(STORAGE_KEY);
-  if (!data) return [];
-  
+let cachedIdeas = [];
+let ideasLoaded = false;
+
+export async function loadIdeas() {
   try {
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
+    const { data, error } = await supabase
+      .from('ideas')
+      .select('*, comments(id, author, text, flag, created_at)')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Failed to load ideas:', error);
+      return cachedIdeas;
+    }
+    
+    cachedIdeas = data || [];
+    ideasLoaded = true;
+    return cachedIdeas;
+  } catch (err) {
+    console.error('Error loading ideas:', err);
+    return cachedIdeas;
   }
 }
 
 export function saveIdeas(ideas) {
+  cachedIdeas = ideas;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(ideas));
 }
 
@@ -186,35 +196,35 @@ export function getCurrentUser() {
   return localStorage.getItem(CURRENT_USER_KEY);
 }
 
-export function isUsernameTaken(username) {
+export async function isUsernameTaken(username) {
   const result = validateUsername(username);
   if (!result.valid) return false;
-  return loadUsernames().includes(result.value.toLowerCase());
-}
-
-export function loadUsernames() {
-  const data = localStorage.getItem(USERNAMES_KEY);
-  if (!data) return [];
   
-  try {
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
+  const { data, error } = await supabase.rpc('check_username_exists', {
+    p_username: result.value.toLowerCase()
+  });
+  
+  if (error) {
+    console.error('Error checking username:', error);
+    return false;
   }
+  
+  return data === true;
 }
 
 export async function registerUser(username, passwordHash) {
   const result = validateUsername(username);
   if (!result.valid) return false;
   
-  const usernames = loadUsernames();
-  if (usernames.includes(result.value.toLowerCase())) {
+  const { data, error } = await supabase.rpc('register_username', {
+    p_username: result.value.toLowerCase()
+  });
+  
+  if (error || !data) {
+    console.error('Error registering user:', error);
     return false;
   }
   
-  usernames.push(result.value.toLowerCase());
-  localStorage.setItem(USERNAMES_KEY, JSON.stringify(usernames));
   localStorage.setItem(CURRENT_USER_KEY, result.value);
   localStorage.setItem(PASSWORD_HASH_KEY, passwordHash);
   return true;
@@ -227,114 +237,119 @@ export async function verifyPassword(password) {
   return inputHash === storedHash;
 }
 
-export function getUserIdeas() {
+export async function getUserIdeas() {
   const currentUser = getCurrentUser();
   if (!currentUser) return [];
-  return loadIdeas().filter(idea => idea.author && idea.author.toLowerCase() === currentUser.toLowerCase());
+  
+  const ideas = await loadIdeas();
+  return ideas.filter(idea => idea.author && idea.author.toLowerCase() === currentUser.toLowerCase());
 }
 
-export function addIdea(input) {
+export async function addIdea(input) {
   const validation = validateIdeaInput(input);
   if (!validation.valid) {
     console.warn('Idea validation failed:', validation.errors);
-    return loadIdeas();
+    return cachedIdeas;
   }
   
   const rateLimit = checkRateLimit('idea');
   if (!rateLimit.allowed) {
     console.warn('Rate limit exceeded for ideas');
-    return loadIdeas();
+    return cachedIdeas;
   }
   
   const currentUser = getCurrentUser();
-  if (!currentUser) return loadIdeas();
+  if (!currentUser) return cachedIdeas;
   
-  const ideas = loadIdeas();
-  ideas.unshift({
-    id: generateId(),
-    name: validation.value.name,
-    description: validation.value.description,
-    screenshotUrl: validation.value.screenshotUrl,
-    author: currentUser.toLowerCase(),
-    createdAt: new Date().toISOString(),
-    votes: { useful: 0, notUseful: 0 },
-    comments: []
+  const { data, error } = await supabase.rpc('add_idea', {
+    p_name: validation.value.name,
+    p_description: validation.value.description,
+    p_screenshot_url: validation.value.screenshotUrl,
+    p_author: currentUser.toLowerCase()
   });
-  saveIdeas(ideas);
-  return ideas;
+  
+  if (error) {
+    console.error('Error adding idea:', error);
+    return cachedIdeas;
+  }
+  
+  await loadIdeas();
+  return cachedIdeas;
 }
 
-export function loadUserVotes() {
-  const data = localStorage.getItem(VOTES_KEY);
-  if (!data) return {};
+export async function loadUserVotes() {
+  const currentUser = getCurrentUser();
+  if (!currentUser) return {};
   
-  try {
-    return JSON.parse(data);
-  } catch {
+  const { data, error } = await supabase
+    .from('user_votes')
+    .select('idea_id, vote_type')
+    .eq('username', currentUser.toLowerCase());
+  
+  if (error) {
+    console.error('Error loading votes:', error);
     return {};
   }
+  
+  const votes = {};
+  (data || []).forEach(v => {
+    votes[v.idea_id] = v.vote_type;
+  });
+  return votes;
 }
 
 export function saveUserVotes(votes) {
   localStorage.setItem(VOTES_KEY, JSON.stringify(votes));
 }
 
-export function updateVote(ideaId, voteType) {
-  const votes = loadUserVotes();
-  const ideas = loadIdeas();
-  const idea = ideas.find(i => i.id === ideaId);
+export async function updateVote(ideaId, voteType) {
+  const currentUser = getCurrentUser();
+  if (!currentUser) return cachedIdeas;
   
-  if (!idea) return ideas;
+  await supabase.rpc('vote_for_idea', {
+    p_idea_id: ideaId,
+    p_username: currentUser.toLowerCase(),
+    p_vote_type: voteType
+  });
   
-  const previousVote = votes[ideaId];
+  await loadIdeas();
   
-  if (previousVote === voteType) {
-    delete votes[ideaId];
-    idea.votes[voteType]--;
-  } else {
-    if (previousVote) {
-      idea.votes[previousVote]--;
-    }
-    votes[ideaId] = voteType;
-    idea.votes[voteType]++;
-  }
-  
-  saveIdeas(ideas);
+  const votes = await loadUserVotes();
   saveUserVotes(votes);
-  return ideas;
+  
+  return cachedIdeas;
 }
 
-export function addComment(ideaId, author, text, flag) {
+export async function addComment(ideaId, author, text, flag) {
   const validation = validateCommentInput({ author, text, flag });
   if (!validation.valid) {
     console.warn('Comment validation failed:', validation.errors);
-    return loadIdeas();
+    return cachedIdeas;
   }
   
   const rateLimit = checkRateLimit('comment');
   if (!rateLimit.allowed) {
     console.warn('Rate limit exceeded for comments');
-    return loadIdeas();
+    return cachedIdeas;
   }
   
-  const ideas = loadIdeas();
-  const idea = ideas.find(i => i.id === ideaId);
-  
-  if (!idea) return ideas;
-  
-  idea.comments.push({
-    id: generateId(),
-    author: validation.value.author,
-    text: validation.value.text,
-    flag: validation.value.flag,
-    createdAt: new Date().toISOString()
+  const { error } = await supabase.rpc('add_comment', {
+    p_idea_id: ideaId,
+    p_author: validation.value.author,
+    p_text: validation.value.text,
+    p_flag: validation.value.flag
   });
   
-  saveIdeas(ideas);
-  return ideas;
+  if (error) {
+    console.error('Error adding comment:', error);
+    return cachedIdeas;
+  }
+  
+  await loadIdeas();
+  return cachedIdeas;
 }
 
-export function getUserVote(ideaId) {
-  const votes = loadUserVotes();
+export async function getUserVote(ideaId) {
+  const votes = await loadUserVotes();
   return votes[ideaId] || null;
 }
