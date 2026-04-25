@@ -170,10 +170,12 @@ export async function loadIdeas() {
   let ideas = [];
   
   try {
-    const { data, error } = await supabase
+    const { data, error, status } = await supabase
       .from('ideas')
       .select('*, comments(id, author, text, flag, created_at)')
       .order('created_at', { ascending: false });
+    
+    console.log('Supabase load:', { error, status, count: data?.length });
     
     if (!error && data && data.length > 0) {
       ideas = data;
@@ -181,12 +183,17 @@ export async function loadIdeas() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(ideas));
       return ideas;
     }
+    
+    if (error) {
+      console.log('Supabase error:', error.message);
+    }
   } catch (err) {
     console.log('Supabase fetch failed:', err.message);
   }
   
   // Fallback to localStorage (for offline or Supabase not working)
   const localIdeas = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  console.log('Using localStorage fallback, ideas count:', localIdeas.length);
   return localIdeas;
 }
 
