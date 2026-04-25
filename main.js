@@ -1,4 +1,4 @@
-import { getCurrentUser, isUsernameTaken, registerUser, verifyPassword, hashPassword, getUserIdeas, loadIdeas, addComment, updateVote, getUserVote } from './components/data.js';
+import { getCurrentUser, isUsernameTaken, registerUser, verifyPassword, hashPassword, getUserIdeas, loadIdeas, addComment as addIdeaComment, updateVote, getUserVote } from './components/data.js';
 import { initModal } from './components/modal.js';
 import { renderGrid } from './components/render.js';
 
@@ -202,13 +202,17 @@ function initCommentsModal() {
   commentForm.addEventListener('submit', (e) => {
     e.preventDefault();
     
-    const author = document.getElementById('commentAuthor').value.trim();
-    const text = document.getElementById('commentText').value.trim();
-    const flag = document.getElementById('commentFlag').value;
+    const authorEl = document.getElementById('commentAuthor');
+    const textEl = document.getElementById('commentText');
+    const flagEl = document.getElementById('commentFlag');
+    
+    const author = authorEl ? authorEl.value.trim() : '';
+    const text = textEl ? textEl.value.trim() : '';
+    const flag = flagEl ? flagEl.value : 'discussion';
     
     if (!currentIdeaId || !author || !text) return;
     
-    addComment(currentIdeaId, author, text, flag);
+    addIdeaComment(currentIdeaId, author, text, flag);
     renderComments();
     if (currentView === 'feed') {
       renderGrid(document.getElementById('ideaGrid'));
