@@ -24,13 +24,6 @@ A modern platform for sharing app ideas with community feedback.
                   npm run dev
                   npm run build
                   ```
-
-                  ## Security
-
-                  - All passwords hashed with SHA-256
-                  - - Strict input validation and sanitization
-                    - - Rate limiting (10 ideas, 20 comments/hour)
-                      - - XSS protection via escapeHtml
                        
                         - ## Live Demo
                        
