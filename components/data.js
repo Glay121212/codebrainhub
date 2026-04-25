@@ -167,33 +167,27 @@ let cachedIdeas = [];
 let ideasLoaded = false;
 
 export async function loadIdeas() {
+  let ideas = [];
+  
   try {
     const { data, error } = await supabase
       .from('ideas')
       .select('*, comments(id, author, text, flag, created_at)')
       .order('created_at', { ascending: false });
     
-    if (error) {
-      console.log('Supabase load error:', error.message);
-      const localIdeas = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      return localIdeas;
+    if (!error && data && data.length > 0) {
+      ideas = data;
+      cachedIdeas = ideas;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(ideas));
+      return ideas;
     }
-    
-    if (!data || data.length === 0) {
-      console.log('Supabase empty, returning empty array');
-      cachedIdeas = [];
-      ideasLoaded = true;
-      return cachedIdeas;
-    }
-    
-    cachedIdeas = data || [];
-    ideasLoaded = true;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedIdeas));
-    return cachedIdeas;
   } catch (err) {
-    console.error('Error loading ideas:', err);
-    return [];
+    console.log('Supabase fetch failed:', err.message);
   }
+  
+  // Fallback to localStorage (for offline or Supabase not working)
+  const localIdeas = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  return localIdeas;
 }
 
 export function saveIdeas(ideas) {
