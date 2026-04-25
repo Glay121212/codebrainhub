@@ -1,44 +1,3 @@
-const JSONBIN_KEY = 'codebrainhub_jsonbin_key';
-const JSONBIN_BIN_ID = 'codebrainhub_jsonbin_binid';
-const API_BASE = 'https://api.jsonbin.io/v3/b';
-
-async function jsonbinRequest(method, path, data = null) {
-  const binId = localStorage.getItem(JSONBIN_BIN_ID);
-  const apiKey = localStorage.getItem(JSONBIN_KEY);
-  
-  if (!apiKey) return null;
-  
-  const url = binId ? `${API_BASE}${path}/${binId}` : `${API_BASE}${path}`;
-  const headers = {
-    'X-Access-Key': apiKey,
-    'Content-Type': 'application/json'
-  };
-  
-  const options = { method, headers };
-  if (data) options.body = JSON.stringify(data);
-  
-  try {
-    const res = await fetch(url, options);
-    const json = await res.json();
-    if (!binId && json.bin?.id) {
-      localStorage.setItem(JSONBIN_BIN_ID, json.bin.id);
-    }
-    return json;
-  } catch (err) {
-    console.log('JSONBin error:', err.message);
-    return null;
-  }
-}
-
-async function loadFromJsonbin() {
-  const result = await jsonbinRequest('GET', '/b/');
-  return result?.record?.ideas || null;
-}
-
-async function saveToJsonbin(ideas) {
-  return await jsonbinRequest('PUT', '/b/', { ideas, updated: Date.now() });
-}
-
 const STORAGE_KEY = 'codebrainhub_ideas';
 const VOTES_KEY = 'codebrainhub_votes';
 const USERNAMES_KEY = 'codebrainhub_usernames';
@@ -201,17 +160,6 @@ let cachedIdeas = [];
 let ideasLoaded = false;
 
 export async function loadIdeas() {
-  const apiKey = localStorage.getItem(JSONBIN_KEY);
-  
-  if (apiKey) {
-    const data = await loadFromJsonbin();
-    if (data) {
-      cachedIdeas = data;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      return data;
-    }
-  }
-  
   const localIdeas = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
   return localIdeas;
 }
@@ -297,11 +245,6 @@ export async function addIdea(input) {
   cachedIdeas = [newIdea, ...cachedIdeas];
   localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedIdeas));
   
-  const apiKey = localStorage.getItem(JSONBIN_KEY);
-  if (apiKey) {
-    await saveToJsonbin(cachedIdeas);
-  }
-  
   return cachedIdeas;
 }
 
@@ -342,10 +285,6 @@ export async function updateVote(ideaId, voteType) {
   });
   
   localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedIdeas));
-  const apiKey = localStorage.getItem(JSONBIN_KEY);
-  if (apiKey) {
-    await saveToJsonbin(cachedIdeas);
-  }
   
   return cachedIdeas;
 }
@@ -383,10 +322,6 @@ export async function addComment(ideaId, author, text, flag) {
   });
   
   localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedIdeas));
-  const apiKey = localStorage.getItem(JSONBIN_KEY);
-  if (apiKey) {
-    await saveToJsonbin(cachedIdeas);
-  }
   
   return cachedIdeas;
 }
@@ -394,16 +329,4 @@ export async function addComment(ideaId, author, text, flag) {
 export async function getUserVote(ideaId) {
   const votes = await loadUserVotes();
   return votes[ideaId] || null;
-}
-
-export function setJsonbinKey(apiKey) {
-  if (apiKey && apiKey.startsWith('$')) {
-    localStorage.setItem(JSONBIN_KEY, apiKey);
-    return true;
-  }
-  return false;
-}
-
-export function getJsonbinKeyStatus() {
-  return !!localStorage.getItem(JSONBIN_KEY);
 }

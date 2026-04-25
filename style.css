@@ -346,19 +346,6 @@ main {
   display: none;
 }
 
-.btn-icon {
-  background: transparent;
-  border: none;
-  font-size: 1.25rem;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 8px;
-}
-
-.btn-icon:hover {
-  background: var(--bg-card);
-}
-
 .btn-secondary {
   background: transparent;
   color: var(--text-secondary);
