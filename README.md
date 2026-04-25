@@ -18,12 +18,7 @@ A modern platform for sharing app ideas with community feedback.
               - - Web Crypto API for password hashing
                
                 - ## Getting Started
-               
-                - ```bash
-                  npm install
-                  npm run dev
-                  npm run build
-                  ```
+              
                        
                         - ## Live Demo
                        
