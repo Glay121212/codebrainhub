@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'YOUR_SUPABASE_URL';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://qkqozmrrotibbrwaeygi.supabase.co';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFrcW96bXJyb3RpYmJyd2FleWdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxMjczOTQsImV4cCI6MjA5MjcwMzM5NH0.2uSJANu6sWCFinbvmuI1lbLmCQMSdoMiazcXATqW33k';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -174,16 +174,20 @@ export async function loadIdeas() {
       .order('created_at', { ascending: false });
     
     if (error) {
-      console.error('Failed to load ideas:', error);
-      return cachedIdeas;
+      console.error('Supabase error, falling back to localStorage:', error.message);
+      const localIdeas = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      return localIdeas;
     }
     
     cachedIdeas = data || [];
     ideasLoaded = true;
+    // Also save to localStorage as backup
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedIdeas));
     return cachedIdeas;
   } catch (err) {
     console.error('Error loading ideas:', err);
-    return cachedIdeas;
+    const localIdeas = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    return localIdeas;
   }
 }
 
@@ -200,13 +204,15 @@ export async function isUsernameTaken(username) {
   const result = validateUsername(username);
   if (!result.valid) return false;
   
+  // Try Supabase first
   const { data, error } = await supabase.rpc('check_username_exists', {
     p_username: result.value.toLowerCase()
   });
   
   if (error) {
-    console.error('Error checking username:', error);
-    return false;
+    // Fallback to localStorage check
+    const usernames = JSON.parse(localStorage.getItem(USERNAMES_KEY) || '[]');
+    return usernames.includes(result.value.toLowerCase());
   }
   
   return data === true;
@@ -216,13 +222,22 @@ export async function registerUser(username, passwordHash) {
   const result = validateUsername(username);
   if (!result.valid) return false;
   
+  // Try Supabase first
   const { data, error } = await supabase.rpc('register_username', {
     p_username: result.value.toLowerCase()
   });
   
   if (error || !data) {
-    console.error('Error registering user:', error);
-    return false;
+    console.log('Supabase register failed, using localStorage');
+    // Fallback: Check localStorage for existing usernames
+    const usernames = JSON.parse(localStorage.getItem(USERNAMES_KEY) || '[]');
+    const normalizedUsername = result.value.toLowerCase();
+    if (usernames.includes(normalizedUsername)) {
+      console.error('Username already taken (local)');
+      return false;
+    }
+    usernames.push(normalizedUsername);
+    localStorage.setItem(USERNAMES_KEY, JSON.stringify(usernames));
   }
   
   localStorage.setItem(CURRENT_USER_KEY, result.value);
@@ -261,7 +276,20 @@ export async function addIdea(input) {
   const currentUser = getCurrentUser();
   if (!currentUser) return cachedIdeas;
   
-  const { data, error } = await supabase.rpc('add_idea', {
+  const newIdea = {
+    id: generateId(),
+    name: validation.value.name,
+    description: validation.value.description,
+    screenshot_url: validation.value.screenshotUrl || '',
+    author: currentUser,
+    created_at: new Date().toISOString(),
+    votes_useful: 0,
+    votes_not_useful: 0,
+    comments: []
+  };
+  
+  // Try Supabase first
+  const { error } = await supabase.rpc('add_idea', {
     p_name: validation.value.name,
     p_description: validation.value.description,
     p_screenshot_url: validation.value.screenshotUrl,
@@ -269,11 +297,14 @@ export async function addIdea(input) {
   });
   
   if (error) {
-    console.error('Error adding idea:', error);
-    return cachedIdeas;
+    console.log('Supabase add failed, using localStorage:', error.message);
+    // Fallback to localStorage
+    cachedIdeas = [newIdea, ...cachedIdeas];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedIdeas));
+  } else {
+    await loadIdeas();
   }
   
-  await loadIdeas();
   return cachedIdeas;
 }
 
