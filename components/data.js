@@ -1,5 +1,7 @@
 const STORAGE_KEY = 'codebrainhub_ideas';
 const VOTES_KEY = 'codebrainhub_votes';
+const USERNAMES_KEY = 'codebrainhub_usernames';
+const CURRENT_USER_KEY = 'codebrainhub_current_user';
 
 export function generateId() {
   return crypto.randomUUID();
@@ -14,11 +16,46 @@ export function saveIdeas(ideas) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(ideas));
 }
 
+export function getCurrentUser() {
+  return localStorage.getItem(CURRENT_USER_KEY);
+}
+
+export function isUsernameTaken(username) {
+  const usernames = loadUsernames();
+  return usernames.includes(username.toLowerCase());
+}
+
+export function loadUsernames() {
+  const data = localStorage.getItem(USERNAMES_KEY);
+  return data ? JSON.parse(data) : [];
+}
+
+export function registerUsername(username) {
+  const usernames = loadUsernames();
+  if (usernames.includes(username.toLowerCase())) {
+    return false;
+  }
+  usernames.push(username.toLowerCase());
+  localStorage.setItem(USERNAMES_KEY, JSON.stringify(usernames));
+  localStorage.setItem(CURRENT_USER_KEY, username);
+  return true;
+}
+
+export function getUserIdeas() {
+  const currentUser = getCurrentUser();
+  if (!currentUser) return [];
+  return loadIdeas().filter(idea => idea.author === currentUser);
+}
+
 export function addIdea(idea) {
+  const currentUser = getCurrentUser();
+  if (!currentUser) return loadIdeas();
+  
   const ideas = loadIdeas();
   ideas.unshift({
     id: generateId(),
     ...idea,
+    author: currentUser,
     createdAt: new Date().toISOString(),
     votes: { useful: 0, notUseful: 0 },
     comments: []
@@ -61,7 +98,7 @@ export function updateVote(ideaId, voteType) {
   return ideas;
 }
 
-export function addComment(ideaId, author, text) {
+export function addComment(ideaId, author, text, flag = 'discussion') {
   const ideas = loadIdeas();
   const idea = ideas.find(i => i.id === ideaId);
   
@@ -71,6 +108,7 @@ export function addComment(ideaId, author, text) {
     id: generateId(),
     author,
     text,
+    flag,
     createdAt: new Date().toISOString()
   });
   

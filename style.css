@@ -54,6 +54,7 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  text-decoration: none;
 }
 
 .btn-primary {
@@ -305,4 +306,88 @@ main {
 
 .comment-form {
   border-top: 1px solid var(--border-card);
+}
+
+.username-hint {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.error-text {
+  color: var(--error);
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.hidden {
+  display: none;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-card);
+  padding: 0.625rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1rem;
+}
+
+.btn-secondary:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-display {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.form-group select {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-card);
+  border-radius: 6px;
+  padding: 0.75rem;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.form-group select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.flag-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  margin-right: 0.5rem;
+}
+
+.flag-badge.discussion {
+  background: rgba(139, 92, 246, 0.2);
+  color: var(--accent-primary);
+}
+
+.flag-badge.suggestion {
+  background: rgba(6, 182, 212, 0.2);
+  color: var(--accent-secondary);
+}
+
+.comment-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
 }
