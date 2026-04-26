@@ -1,9 +1,4 @@
-const STORAGE_KEY = 'codebrainhub_ideas';
-const VOTES_KEY = 'codebrainhub_votes';
-const USERNAMES_KEY = 'codebrainhub_usernames';
-const CURRENT_USER_KEY = 'codebrainhub_current_user';
-const PASSWORD_HASH_KEY = 'codebrainhub_password_hash';
-const RATE_LIMIT_KEY = 'codebrainhub_rate_limit';
+import { supabase } from './supabase.js';
 
 const CONFIG = {
   USERNAME_MIN: 2,
@@ -121,27 +116,7 @@ function isValidUrl(str) {
 }
 
 function checkRateLimit(action) {
-  const now = Date.now();
-  const rateData = JSON.parse(localStorage.getItem(RATE_LIMIT_KEY) || '{}');
-  
-  const actionData = rateData[action] || { count: 0, resetAt: now + CONFIG.RATE_LIMIT_WINDOW_MS };
-  
-  if (now > actionData.resetAt) {
-    actionData.count = 0;
-    actionData.resetAt = now + CONFIG.RATE_LIMIT_WINDOW_MS;
-  }
-  
-  const maxActions = action === 'idea' ? CONFIG.MAX_IDEAS_PER_HOUR : CONFIG.MAX_COMMENTS_PER_HOUR;
-  
-  if (actionData.count >= maxActions) {
-    return { allowed: false, remaining: 0, resetAt: actionData.resetAt };
-  }
-  
-  actionData.count++;
-  rateData[action] = actionData;
-  localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify(rateData));
-  
-  return { allowed: true, remaining: maxActions - actionData.count, resetAt: actionData.resetAt };
+  return { allowed: true, remaining: 999, resetAt: Date.now() + CONFIG.RATE_LIMIT_WINDOW_MS };
 }
 
 export async function hashPassword(password) {
@@ -156,177 +131,164 @@ export function generateId() {
   return crypto.randomUUID();
 }
 
-let cachedIdeas = [];
-let ideasLoaded = false;
-
 export async function loadIdeas() {
-  const localIdeas = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  return localIdeas;
+  const { data, error } = await supabase
+    .from('ideas')
+    .select('*, comments(*)')
+    .order('created_at', { ascending: false });
+  
+  if (error) {
+    console.error('Error loading ideas:', error);
+    return [];
+  }
+  
+  return data || [];
 }
 
-export function saveIdeas(ideas) {
-  cachedIdeas = ideas;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(ideas));
-}
-
-export function getCurrentUser() {
-  return localStorage.getItem(CURRENT_USER_KEY);
+export async function getCurrentUser() {
+  return localStorage.getItem('codebrainhub_current_user');
 }
 
 export async function isUsernameTaken(username) {
   const result = validateUsername(username);
   if (!result.valid) return false;
   
-  const usernames = JSON.parse(localStorage.getItem(USERNAMES_KEY) || '[]');
-  return usernames.includes(result.value.toLowerCase());
+  const { data } = await supabase
+    .from('usernames')
+    .select('username')
+    .ilike('username', result.value)
+    .single();
+  
+  return !!data;
 }
 
 export async function registerUser(username, passwordHash) {
   const result = validateUsername(username);
   if (!result.valid) return false;
   
-  const usernames = JSON.parse(localStorage.getItem(USERNAMES_KEY) || '[]');
-  const normalizedUsername = result.value.toLowerCase();
-  if (usernames.includes(normalizedUsername)) {
-    console.error('Username already taken');
+  const { error } = await supabase.rpc('register_username', { p_username: result.value });
+  if (error) {
+    console.error('Username registration failed:', error);
     return false;
   }
-  usernames.push(normalizedUsername);
-  localStorage.setItem(USERNAMES_KEY, JSON.stringify(usernames));
   
-  localStorage.setItem(CURRENT_USER_KEY, result.value);
-  localStorage.setItem(PASSWORD_HASH_KEY, passwordHash);
+  localStorage.setItem('codebrainhub_current_user', result.value);
+  localStorage.setItem('codebrainhub_password_hash', passwordHash);
   return true;
 }
 
 export async function verifyPassword(password) {
-  const storedHash = localStorage.getItem(PASSWORD_HASH_KEY);
+  const storedHash = localStorage.getItem('codebrainhub_password_hash');
   if (!storedHash) return false;
   const inputHash = await hashPassword(password);
   return inputHash === storedHash;
 }
 
 export async function getUserIdeas() {
-  const currentUser = getCurrentUser();
+  const currentUser = await getCurrentUser();
   if (!currentUser) return [];
   
-  const ideas = await loadIdeas();
-  return ideas.filter(idea => idea.author && idea.author.toLowerCase() === currentUser.toLowerCase());
+  const { data, error } = await supabase
+    .from('ideas')
+    .select('*, comments(*)')
+    .ilike('author', currentUser)
+    .order('created_at', { ascending: false });
+  
+  if (error) {
+    console.error('Error loading user ideas:', error);
+    return [];
+  }
+  
+  return data || [];
 }
 
 export async function addIdea(input) {
   const validation = validateIdeaInput(input);
   if (!validation.valid) {
     console.warn('Idea validation failed:', validation.errors);
-    return cachedIdeas;
+    return [];
   }
   
-  const rateLimit = checkRateLimit('idea');
-  if (!rateLimit.allowed) {
-    console.warn('Rate limit exceeded for ideas');
-    return cachedIdeas;
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return [];
+  
+  const { data, error } = await supabase.rpc('add_idea', {
+    p_name: validation.value.name,
+    p_description: validation.value.description,
+    p_screenshot_url: validation.value.screenshotUrl || '',
+    p_author: currentUser
+  });
+  
+  if (error) {
+    console.error('Error adding idea:', error);
+    return [];
   }
   
-  const currentUser = getCurrentUser();
-  if (!currentUser) return cachedIdeas;
-  
-  const newIdea = {
-    id: generateId(),
-    name: validation.value.name,
-    description: validation.value.description,
-    screenshot_url: validation.value.screenshotUrl || '',
-    author: currentUser,
-    created_at: new Date().toISOString(),
-    votes_useful: 0,
-    votes_not_useful: 0,
-    comments: []
-  };
-  
-  cachedIdeas = [newIdea, ...cachedIdeas];
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedIdeas));
-  
-  return cachedIdeas;
+  return await loadIdeas();
 }
 
 export async function loadUserVotes() {
-  const votes = JSON.parse(localStorage.getItem(VOTES_KEY) || '{}');
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return {};
+  
+  const { data } = await supabase
+    .from('user_votes')
+    .select('idea_id, vote_type')
+    .ilike('username', currentUser);
+  
+  const votes = {};
+  (data || []).forEach(v => {
+    votes[v.idea_id] = v.vote_type;
+  });
+  
   return votes;
 }
 
-export function saveUserVotes(votes) {
-  localStorage.setItem(VOTES_KEY, JSON.stringify(votes));
+export async function getUserVote(ideaId) {
+  const votes = await loadUserVotes();
+  return votes[ideaId] || null;
 }
 
 export async function updateVote(ideaId, voteType) {
-  const currentUser = getCurrentUser();
-  if (!currentUser) return cachedIdeas;
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return [];
   
-  const votes = JSON.parse(localStorage.getItem(VOTES_KEY) || '{}');
-  const existingVote = votes[ideaId];
-  
-  if (existingVote === voteType) {
-    delete votes[ideaId];
-  } else {
-    votes[ideaId] = voteType;
-  }
-  saveUserVotes(votes);
-  
-  cachedIdeas = cachedIdeas.map(idea => {
-    if (idea.id === ideaId) {
-      const delta = existingVote === voteType ? 0 : (voteType === 'useful' ? 1 : -1);
-      const removeDelta = existingVote && existingVote !== voteType ? (existingVote === 'useful' ? -1 : 1) : 0;
-      return {
-        ...idea,
-        votes_useful: Math.max(0, (idea.votes_useful || 0) + delta - removeDelta),
-        votes_not_useful: Math.max(0, (idea.votes_not_useful || 0) - delta + removeDelta)
-      };
-    }
-    return idea;
+  const { error } = await supabase.rpc('vote_for_idea', {
+    p_idea_id: ideaId,
+    p_username: currentUser,
+    p_vote_type: voteType
   });
   
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedIdeas));
+  if (error) {
+    console.error('Error voting:', error);
+  }
   
-  return cachedIdeas;
+  return await loadIdeas();
 }
 
 export async function addComment(ideaId, author, text, flag) {
   const validation = validateCommentInput({ author, text, flag });
   if (!validation.valid) {
     console.warn('Comment validation failed:', validation.errors);
-    return cachedIdeas;
+    return [];
   }
   
-  const rateLimit = checkRateLimit('comment');
-  if (!rateLimit.allowed) {
-    console.warn('Rate limit exceeded for comments');
-    return cachedIdeas;
-  }
-  
-  const newComment = {
-    id: generateId(),
-    idea_id: ideaId,
-    author: validation.value.author,
-    text: validation.value.text,
-    flag: validation.value.flag,
-    created_at: new Date().toISOString()
-  };
-  
-  cachedIdeas = cachedIdeas.map(idea => {
-    if (idea.id === ideaId) {
-      return {
-        ...idea,
-        comments: [newComment, ...(idea.comments || [])]
-      };
-    }
-    return idea;
+  const { error } = await supabase.rpc('add_comment', {
+    p_idea_id: ideaId,
+    p_author: validation.value.author,
+    p_text: validation.value.text,
+    p_flag: validation.value.flag
   });
   
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedIdeas));
+  if (error) {
+    console.error('Error adding comment:', error);
+    return [];
+  }
   
-  return cachedIdeas;
+  return await loadIdeas();
 }
 
-export async function getUserVote(ideaId) {
-  const votes = await loadUserVotes();
-  return votes[ideaId] || null;
+export async function logoutUser() {
+  localStorage.removeItem('codebrainhub_current_user');
+  localStorage.removeItem('codebrainhub_password_hash');
 }

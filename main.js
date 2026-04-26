@@ -158,11 +158,11 @@ function createCard(idea) {
     <div class="vote-section">
       <button class="vote-btn useful ${userVote === 'useful' ? 'active' : ''}" data-idea="${idea.id}" data-vote="useful">
         <span>Would Use</span>
-        <strong>${idea.votes.useful}</strong>
+        <strong>${idea.votes_useful}</strong>
       </button>
       <button class="vote-btn not-useful ${userVote === 'notUseful' ? 'active' : ''}" data-idea="${idea.id}" data-vote="notUseful">
         <span>Not For Me</span>
-        <strong>${idea.votes.notUseful}</strong>
+        <strong>${idea.votes_not_useful}</strong>
       </button>
     </div>
     <button class="comments-btn" data-idea="${idea.id}" data-name="${escapeHtml(idea.name)}">
